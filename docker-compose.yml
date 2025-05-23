@@ -1,0 +1,45 @@
+services:
+
+
+  orion:
+    image: fiware/orion
+    depends_on:
+      - mongo
+    links:
+      - mongo
+    ports:
+      - "1026:1026"
+    command: -dbURI mongodb://mongo
+
+  mongo:
+    image: mongo:4.4
+    ports:
+      - 27017:27017
+    command: --nojournal
+
+  app:
+    build: .
+    volumes:
+      - ./app:/app
+    # environment:
+    #   - AVIATIONSTACK_API_KEY=your_api_key_here
+    #   - ORION_URL=http://orion:1026
+    env_file: ".env"
+    depends_on:
+      - orion
+    command: ["python", "main.py"]
+
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+
+
+volumes:
+  grafana-storage:
