@@ -1,17 +1,9 @@
-from config import CITIES, FLIGHT_DATE
-# from aviationstack import get_airport_flights
 from fiware_client import fetch_flights, to_ngsi_entity, send_to_orion
+from config import IATA_CODE, ORION_URL
 
-def main():
-    for city in CITIES:
-        print(f"🔍 Consultando voos para {city}")
-        flights = fetch_flights(city)
-        for flight in flights:
-            entidade = to_ngsi_entity(flight)
-            send_to_orion(entidade)
-            print(f"Enviado: {entidade['id']}")
-            print(f"✅ Publicado voo {flight.get('flight', {}).get('iata')}")
-
-if __name__ == "__main__":
-    main()
-
+flights = fetch_flights(IATA_CODE)
+for flight in flights:
+    print(ORION_URL)
+    entity = to_ngsi_entity(flight)
+    flight_num = flight.get("flight", {}).get("iataNumber", "UNKNOWN")
+    print(f"Sent flight {flight_num} to Orion Context Broker.")

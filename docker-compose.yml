@@ -1,45 +1,80 @@
 services:
-
-
-  orion:
-    image: fiware/orion
-    depends_on:
-      - mongo
-    links:
-      - mongo
-    ports:
-      - "1026:1026"
-    command: -dbURI mongodb://mongo
-
-  mongo:
-    image: mongo:4.4
-    ports:
-      - 27017:27017
-    command: --nojournal
-
   app:
     build: .
     volumes:
       - ./app:/app
-    # environment:
-    #   - AVIATIONSTACK_API_KEY=your_api_key_here
-    #   - ORION_URL=http://orion:1026
-    env_file: ".env"
-    depends_on:
-      - orion
+    env_file: .env
     command: ["python", "main.py"]
-
-
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:latest
+    container_name: grafana
     ports:
       - "3000:3000"
-    volumes:
-      - grafana-storage:/var/lib/grafana
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - fiware
+    restart: unless-stopped
 
+  crate:
+    image: crate/crate:latest
+    container_name: crate
+    ports:
+      - "4200:4200"
+      - "5432:5432" # Porta PostgreSQL para CrateDB (se vocÃª usar)
+    command: ["crate", "-Cdiscovery.type=single-node", "-Ccluster.name=docker-cluster", "-Cgateway.expected_nodes=1", "-Cgateway.recover_after_nodes=1"] # Comando mais robusto para single-node
+    environment:
+      - CRATE_HEAP_SIZE=1g
+    volumes:
+      - crate_data:/data
+    networks:
+      - fiware
+    restart: unless-stopped
+
+  quantumleap:
+    image: orchestracities/quantumleap:latest
+    container_name: quantumleap
+    depends_on:
+      - crate
+      - orion
+    ports:
+      - "8668:8668"
+    environment:
+      - CRATE_HOST=crate
+      - QL_CRATE_HOST=crate
+      - CRATE_PORT=4200
+      - QL_DB_NAME=doc
+      - USE_GEOCODING=False
+      - LOGLEVEL=INFO
+    networks:
+      - fiware
+    restart: unless-stopped
+
+  orion:
+    image: telefonicaiot/fiware-orion:latest
+    container_name: orion
+    depends_on:
+      - mongo
+    ports:
+      - "1026:1026"
+    command: -dbURI mongodb://mongo
+    networks:
+      - fiware
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:6.0
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - fiware
+    restart: unless-stopped
+
+networks:
+  fiware:
+    driver: bridge
 
 volumes:
-  grafana-storage:
+  crate_data:
+  mongo_data:
