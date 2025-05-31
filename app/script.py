@@ -2,7 +2,7 @@ import requests
 import json
 
 # Configurações do Orion e QuantumLeap
-ORION_URL = "http://localhost:1026/v2/subscriptions"  # Corrigido: sem /orion
+ORION_URL = "http://orion:1026/v2/subscriptions"  # Corrigido: sem /orion
 NOTIFICATION_URL = "http://quantumleap:8668/v2/notify"  # Corrigido: endpoint correto
 
 # Cabeçalhos HTTP
@@ -18,8 +18,8 @@ subscription = {
     "subject": {
         "entities": [
             {
-                "idPattern": ".*",
-                "type": "Flight"
+                "idPattern": ".*",  
+                "type": "*"         
             }
         ]
     },
@@ -33,7 +33,7 @@ subscription = {
 }
 
 # Envio da requisição
-response = requests.post(ORION_URL, headers=headers, data=json.dumps(subscription))
+response = requests.post(ORION_URL, headers=headers, json=subscription)
 
 # Verificação da resposta
 if response.status_code in [201, 204]:

@@ -1,4 +1,20 @@
 services:
+  script:
+    build: .
+    volumes:
+      - ./app:/app
+    env_file: .env
+    networks:
+      - fiware
+    depends_on:
+      crate:
+        condition: service_healthy
+      orion:
+        condition: service_started
+      quantumleap:
+        condition: service_started
+    command: ["python", "script.py"]
+
   app:
     build: .
     volumes:
@@ -6,7 +22,10 @@ services:
     env_file: .env
     networks:
       - fiware
+    depends_on:
+      - script
     command: ["python", "main.py"]
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -30,13 +49,20 @@ services:
     networks:
       - fiware
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4200/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   quantumleap:
     image: orchestracities/quantumleap:latest
     container_name: quantumleap
     depends_on:
-      - crate
-      - orion
+      crate:
+        condition: service_healthy
+      orion:
+        condition: service_started
     ports:
       - "8668:8668"
     environment:
@@ -46,7 +72,7 @@ services:
       - QL_DB_NAME=doc
       - USE_GEOCODING=False
       - LOGLEVEL=INFO
-      - QL_DEFAULT_SERVICE=doc
+      - QL_DEFAULT_SERVICE=flights
     networks:
       - fiware
     restart: unless-stopped

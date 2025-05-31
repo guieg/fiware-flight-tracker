@@ -1,5 +1,6 @@
 import requests
-from config import ORION_URL, AVIATIONSTACK_API_KEY, FLIGHT_DATE, DIRECTION
+from config import ORION_URL, AVIATIONSTACK_API_KEY, FLIGHT_DATE, DIRECTION, ORION_BASE_URL
+import random
 
 import json
 
@@ -13,6 +14,15 @@ def fetch_flights(iata):
     data = response.json()
     return data.get('data', [])
 
+from hashlib import md5
+
+def generate_flight_id(flight):
+    flight_number = flight.get('flight', {}).get('iataNumber', 'UNKNOWN')
+    departure_time = flight.get('departure', {}).get('scheduledTime', '1970-01-01T00:00:00Z')
+    raw_id = f"{flight_number}_{departure_time}"
+    return md5(raw_id.encode()).hexdigest()  # ou use diretamente raw_id
+
+
 def to_ngsi_entity(flight):
     flight_info = flight.get('flight', {})
     departure_info = flight.get('departure', {})
@@ -25,7 +35,7 @@ def to_ngsi_entity(flight):
     if not scheduled_time:
         scheduled_time = "1970-01-01T00:00:00Z"  # fallback válido
 
-    flight_id = f"Flight:{iata_number}_{scheduled_time[:10]}"
+    flight_id = generate_flight_id(flight)
     print(f"Processing flight ID: {flight_id}")
     
     return {
@@ -74,22 +84,20 @@ def send_to_orion(entity):
         "Fiware-ServicePath": "/flights"
     }
 
-
     entity_id = entity["id"]
     entity_attrs = entity.copy()
     entity_attrs.pop("id")
     entity_attrs.pop("type")
+
+    # Verifica se a entidade existe
+    check = requests.get(f"{ORION_BASE_URL}/entities/{entity_id}", headers=headers_get)
     
-    print(ORION_URL)
-    # Verifica se existe
-    check = requests.get(f"{ORION_URL}/{entity_id}", headers=headers_get)
     if check.status_code == 404:
-        # Criar nova entidade
-        response = requests.post(ORION_URL, headers=headers, data=json.dumps(entity))
-        print(response.text) 
+        print(f"Criando nova entidade: {entity_id}")
+        response = requests.post(f"{ORION_BASE_URL}/entities", headers=headers, data=json.dumps(entity))
     else:
-        # Atualizar entidade existente (sem id/type no corpo)
-        response = requests.patch(f"{ORION_URL}/{entity_id}/attrs", headers=headers, data=json.dumps(entity_attrs))
+        print(f"Atualizando entidade existente: {entity_id}")
+        response = requests.patch(f"{ORION_BASE_URL}/entities/{entity_id}/attrs", headers=headers, data=json.dumps(entity_attrs))
 
     if response.status_code not in [200, 201, 204]:
         print(f"Erro ao enviar para Orion: {response.status_code}, {response.text}")
