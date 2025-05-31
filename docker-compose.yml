@@ -4,6 +4,8 @@ services:
     volumes:
       - ./app:/app
     env_file: .env
+    networks:
+      - fiware
     command: ["python", "main.py"]
   grafana:
     image: grafana/grafana:latest
@@ -44,6 +46,7 @@ services:
       - QL_DB_NAME=doc
       - USE_GEOCODING=False
       - LOGLEVEL=INFO
+      - QL_DEFAULT_SERVICE=doc
     networks:
       - fiware
     restart: unless-stopped

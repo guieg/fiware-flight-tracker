@@ -1,43 +1,43 @@
 import requests
 import json
 
-# from app.config import ORION_URL
-ORION_URL = "http://localhost:1026/v2/entities"  # URL do Orion Context Broker
-# ORION_URL = <ORION_URL>/orion/v2/entities"
-HEADERS = {"Content-Type": "application/json"}
+# Configurações do Orion e QuantumLeap
+ORION_URL = "http://localhost:1026/v2/subscriptions"  # Corrigido: sem /orion
+NOTIFICATION_URL = "http://quantumleap:8668/v2/notify"  # Corrigido: endpoint correto
 
-def create_flight_entity():
-    data = {
-        "id": "Flight:TEST123",
-        "type": "Flight",
-        "status": {
-            "type": "Text",
-            "value": "scheduled"
-        }
-    }
-    response = requests.post(ORION_URL, headers=HEADERS, data=json.dumps(data))
-    if response.status_code in [201, 204]:
-        print("Entidade Flight criada com sucesso!")
-    elif response.status_code == 422:
-        print("Entidade já existe.")
-    else:
-        print(f"Erro ao criar entidade: {response.status_code}, {response.text}")
+# Cabeçalhos HTTP
+headers = {
+    "Content-Type": "application/json",
+    "Fiware-Service": "flights",
+    "Fiware-ServicePath": "/flights" 
+}
 
-def update_flight_entity():
-    entity_id = "Flight:TEST123"
-    url = f"{ORION_URL}/{entity_id}/attrs"
-    data = {
-        "status": {
-            "type": "Text",
-            "value": "delayed"
-        }
-    }
-    response = requests.patch(url, headers=HEADERS, data=json.dumps(data))
-    if response.status_code in [204]:
-        print("Entidade Flight atualizada com sucesso!")
-    else:
-        print(f"Erro ao atualizar entidade: {response.status_code}, {response.text}")
+# Corpo da subscription
+subscription = {
+    "description": "Flight data to QuantumLeap",
+    "subject": {
+        "entities": [
+            {
+                "idPattern": ".*",
+                "type": "Flight"
+            }
+        ]
+    },
+    "notification": {
+        "http": {
+            "url": NOTIFICATION_URL
+        },
+        "attrsFormat": "normalized"
+    },
+    "throttling": 1
+}
 
-if __name__ == "__main__":
-    create_flight_entity()
-    update_flight_entity()
+# Envio da requisição
+response = requests.post(ORION_URL, headers=headers, data=json.dumps(subscription))
+
+# Verificação da resposta
+if response.status_code in [201, 204]:
+    print("✅ Subscription criada com sucesso!")
+else:
+    print(f"❌ Erro ao criar subscription: {response.status_code}")
+    print(response.text)
